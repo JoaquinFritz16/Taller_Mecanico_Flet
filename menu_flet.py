@@ -3,36 +3,39 @@ import mysql.connector
 
 #--Importar los archivos correspondiente al sistema con las clases
 from usuario import Herramienta_Usuario
+from cliente import Herramienta_Cliente
 
-def connect_to_db():
-    try:
-        connection = mysql.connector.connect(
-            host='localhost',
-            port='3306',
-            user='root',
-            password='root',
-            database='Taller_Mecanico',
-            ssl_disabled=True
-        )
-        if connection.is_connected():
-            print('Conexión exitosa')
-            return connection
-    except Exception as ex:
-        print('Conexión errónea')
-        print(ex)
-        return None
+# def connect_to_db():
+#     try:
+#         connection = mysql.connector.connect(
+#             host='localhost',
+#             port='3306',
+#             user='root',
+#             password='root',
+#             database='Taller_Mecanico',
+#             ssl_disabled=True
+#         )
+#         if connection.is_connected():
+#             print('Conexión exitosa')
+#             return connection
+#     except Exception as ex:
+#         print('Conexión errónea')
+#         print(ex)
+#         return None
 
-connection = connect_to_db()
+# connection = connect_to_db()
 
 def menu_principal(page: ft.Page):
+    page.bgcolor = ft.Colors.BLUE_50
     page.window.maximized=True
-    page.add(ft.Text("Prueba de conexión a la base de datos"))
     page.title = "Administración de Taller Mecánico"
     
-    # ----Iconos Personales--- 
+    # ----assets Personales--- 
     #  Crear un Row personalizado para el PopupMenuItem y barra de herramientas
         
-    cliente_icono = ft.Image(src="iconos/iconos/usuario.png", width=28, height=28)
+    cliente_icono = ft.Image(src="assets/usuario.png", width=28, height=28)
+    cliente_icono = ft.Image(src="http://localhost:8000/assets/tu_icono.png")
+    cliente_icono = ft.Image(src="file:///E:/Clientes/Colegio/Instituto%20Renault/Ejercicio_Flet/assets/usuario.png")
     cliente_item = ft.Row(
         controls=[
             cliente_icono,
@@ -41,8 +44,8 @@ def menu_principal(page: ft.Page):
         alignment=ft.MainAxisAlignment.START,
         spacing=8
     )
-
-    proveedor_icono = ft.Image(src="iconos/iconos/proveedor.png", width=28, height=28)
+    
+    proveedor_icono = ft.Image(src="assets/proveedor.png", width=28, height=28)
     proveedor_item = ft.Row(
         controls=[
             proveedor_icono,
@@ -51,8 +54,8 @@ def menu_principal(page: ft.Page):
         alignment=ft.MainAxisAlignment.START,
         spacing=8
     )
-
-    repuesto_icono = ft.Image(src="iconos/iconos/caja-de-cambios.png", width=28, height=28)
+    
+    repuesto_icono = ft.Image(src="assets/caja-de-cambios.png", width=28, height=28)  
     repuesto_item = ft.Row(
         controls=[
             repuesto_icono,
@@ -61,8 +64,8 @@ def menu_principal(page: ft.Page):
         alignment=ft.MainAxisAlignment.START,
         spacing=8
     )
-
-    empleado_icono = ft.Image(src="iconos/iconos/empleado.png", width=28, height=28)
+    
+    empleado_icono = ft.Image(src="assets/empleado.png", width=28, height=28)  
     empleado_item = ft.Row(
         controls=[
             empleado_icono,
@@ -70,9 +73,9 @@ def menu_principal(page: ft.Page):
         ],
         alignment=ft.MainAxisAlignment.START,
         spacing=8
-    )
-
-    usuario_icono = ft.Image(src="iconos/iconos/usuarios.png", width=28, height=28)
+    ) 
+    
+    usuario_icono = ft.Image(src="assets/usuarios.png", width=28, height=28)  
     usuario_item = ft.Row(
         controls=[
             usuario_icono,
@@ -81,8 +84,8 @@ def menu_principal(page: ft.Page):
         alignment=ft.MainAxisAlignment.START,
         spacing=8
     )
-
-    ficha_tecnica_icono=ft.Image(src="iconos/iconos/auto.png", width=28, height=28)
+    
+    ficha_tecnica_icono=ft.Image(src="assets/auto.png", width=28, height=28)
     ficha_tecnica_item=ft.Row(
         controls=[
             ficha_tecnica_icono,
@@ -91,8 +94,8 @@ def menu_principal(page: ft.Page):
         alignment=ft.MainAxisAlignment.START,
         spacing=8
     )
-
-    presupuesto_icono=ft.Image(src="iconos/iconos/presupuesto.png", width=28, height=28)
+    
+    presupuesto_icono=ft.Image(src="assets/presupuesto.png", width=28, height=28)
     presupuesto_icono_item=ft.Row(
          controls=[
              presupuesto_icono,
@@ -191,7 +194,7 @@ def menu_principal(page: ft.Page):
     )
 
 def cliente(e, page: ft.Page):
-    pass
+    Herramienta_Cliente(page, menu_principal)
     
 def proveedor(e, page: ft.Page):
     pass
@@ -212,3 +215,4 @@ def main(page: ft.Page):
     menu_principal(page)
 
 ft.app(target=main)
+#ft.app(main, view=ft.AppView.WEB_BROWSER)
