@@ -1,141 +1,138 @@
 import flet as ft
 import mysql.connector
+from db import connect_to_db
 
-def connect_to_db():
-    try:
-        connection = mysql.connector.connect(
-            host='localhost',
-            port=3306,
-            user='root',
-            password='1234',
-            database='Taller_Mecanico',
-            ssl_disabled=True
-        )
-        if connection.is_connected():
-            print('Conexión exitosa')
-            return connection
-    except Exception as ex:
-        print('Conexión errónea')
-        print(ex)
-        return None
-
-class Herramienta_Cliente:
-    def __init__(self, page: ft.Page, main_menu_callback):
+class VistaCliente:
+    def __init__(self, page: ft.Page, callback_volver):
         self.page = page
-        self.main_menu_callback = main_menu_callback
-        self.connection = connect_to_db()
-        self.cursor = self.connection.cursor() if self.connection else None
-        self.mostrar_cliente()
+        self.callback_volver = callback_volver
+        
+        # --- CREACIÓN DE CONTROLES EN __init__ ---
+        self.txt_apellido = ft.TextField(label="Apellido")
+        self.txt_nombre = ft.TextField(label="Nombre")
+        self.txt_dni = ft.TextField(label="DNI")
+        self.txt_direccion = ft.TextField(label="Dirección")
+        self.txt_telefono = ft.TextField(label="Teléfono")
+        self.txt_cod_cliente = ft.TextField(label="Código de Cliente (ej: C001)")
 
-    def mostrar_cliente(self):
-        self.bgcolor = ft.Colors.BLUE_50
-        self.page.clean()
-        header = ft.Row(
-            controls=[
-                ft.Text("Herramienta de Gestión de Clientes", size=20, weight="bold"),
-                ft.ElevatedButton(text="Alta"),
-                ft.ElevatedButton(text="Consulta"),
-                ft.ElevatedButton(text="Imprimir"),
-                ft.ElevatedButton(text="<--Volver al Menú", on_click=self.volver_al_menu),
-            ],
-            alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
-            vertical_alignment=ft.CrossAxisAlignment.CENTER
-        )
-        data_table = self.create_client_table()
-        self.page.add(
-            ft.Container(
-                content=ft.Column(
-                    controls=[
-                        header,
-                        data_table
-                    ],
-                    alignment=ft.MainAxisAlignment.START,
-                    horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-                ),
-                padding=20
-            )
-        )
-
-    def volver_al_menu(self, e):
-        self.page.clean()
-        self.main_menu_callback(self.page)
-
-    def create_client_table(self):
-        if not self.cursor:
-            print("No hay conexión a la base de datos")
-            return ft.Text("No hay conexión a la base de datos")
-
-        listado_todos_clientes = """
-            SELECT per.apellido, per.nombre, per.dni,
-                   per.direccion, per.tele_contac, c.cod_cliente
-            FROM persona per INNER JOIN cliente c ON per.dni = c.dni
-            ORDER BY per.apellido
-        """
-        self.cursor.execute(listado_todos_clientes)
-        datos_clientes = self.cursor.fetchall()
-        rows = []
-
-        for cliente in datos_clientes:
-            eliminar_button = ft.Container(
-                content=ft.Image(src="assets/bote-de-basura.png", width=28, height=28, tooltip="Borrar"),
-                on_click=lambda e, c=cliente: self.eliminar_cliente(e, c),
-                ink=True,
-                padding=5
-            )
-
-            actualizar_button = ft.Container(
-                content=ft.Image(src="assets/modificar.png", width=28, height=28,tooltip="Modificar"),
-                on_click=lambda e, c=cliente: self.actualizar_cliente(e, c),
-                ink=True,
-                padding=5
-            )
-
-            rows.append(
-                ft.DataRow(
-                    cells=[
-                        ft.DataCell(ft.Text(cliente[0])),
-                        ft.DataCell(ft.Text(cliente[1])),
-                        ft.DataCell(ft.Text(str(cliente[2]))),
-                        ft.DataCell(ft.Text(cliente[3])),
-                        ft.DataCell(ft.Text(cliente[4])),
-                        ft.DataCell(ft.Text(str(cliente[5]))),
-                        ft.DataCell(
-                            ft.Row(
-                                controls=[
-                                    eliminar_button,
-                                    actualizar_button
-                                ]
-                            )
-                        )
-                    ],
-                ),
-            )
-
-        data_table = ft.DataTable(
+        self.tabla_clientes = ft.DataTable(
             columns=[
-                ft.DataColumn(ft.Text("Apellido")),
-                ft.DataColumn(ft.Text("Nombres")),
-                ft.DataColumn(ft.Text("DNI")),
-                ft.DataColumn(ft.Text("Direccion")),
-                ft.DataColumn(ft.Text("Teléfono")),
-                ft.DataColumn(ft.Text("Código de Cliente")),
+                ft.DataColumn(ft.Text("Apellido")), ft.DataColumn(ft.Text("Nombres")),
+                ft.DataColumn(ft.Text("DNI")), ft.DataColumn(ft.Text("Dirección")),
+                ft.DataColumn(ft.Text("Teléfono")), ft.DataColumn(ft.Text("Cód. Cliente")),
                 ft.DataColumn(ft.Text("Acciones")),
             ],
-            rows=rows,
+            rows=[], expand=True,
         )
-        return data_table
 
-    def eliminar_cliente(self, e, cliente):
-        print(f"Eliminar {cliente[0]}")
+        # --- CAMBIO CLAVE #1: Creamos el diálogo como siempre ---
+        self.dlg_modal = ft.AlertDialog(
+            modal=True,
+            title=ft.Text("Nuevo Cliente"),
+            content=ft.Column(
+                controls=[
+                    self.txt_apellido, self.txt_nombre, self.txt_dni,
+                    self.txt_direccion, self.txt_telefono, self.txt_cod_cliente
+                ], tight=True,
+            ),
+            actions=[
+                ft.TextButton("Cancelar", on_click=self.cerrar_dialogo),
+                ft.FilledButton("Guardar", on_click=self.guardar_cliente),
+            ],
+            actions_alignment=ft.MainAxisAlignment.END,
+        )
 
-    def actualizar_cliente(self, e, cliente):
-        print(f"Actualizar {cliente[0]}")
+    def build(self):
+        """Construye la vista y AÑADE el diálogo al overlay."""
+        # --- CAMBIO CLAVE #2: Añadimos el diálogo a la capa superpuesta DE INMEDIATO ---
+        # El diálogo ahora "existe" en la página desde el principio, solo que está oculto.
+        if self.dlg_modal not in self.page.overlay:
+             self.page.overlay.append(self.dlg_modal)
+        
+        self.refrescar_tabla()
+        
+        return ft.Column(
+            expand=True,
+            controls=[
+                ft.Row(
+                    alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                    controls=[
+                        ft.Text("Gestión de Clientes", size=24, weight="bold"),
+                        ft.ElevatedButton("Volver al Menú", icon=ft.Icons.ARROW_BACK, on_click=lambda _: self.callback_volver()),
+                    ],
+                ),
+                ft.Row(
+                    controls=[ft.ElevatedButton("Nuevo Cliente", icon=ft.Icons.ADD, on_click=self.mostrar_dialogo_alta)]
+                ),
+                ft.Divider(),
+                ft.Column(controls=[self.tabla_clientes], scroll=ft.ScrollMode.ALWAYS, expand=True)
+            ],
+        )
 
-def main_menu_callback(page: ft.Page):
-    page.clean()
-    page.add(ft.Text("Menú Principal"))
+    def refrescar_tabla(self):
+        self.tabla_clientes.rows.clear()
+        conn = connect_to_db()
+        if conn:
+            try:
+                cursor = conn.cursor()
+                query = "SELECT per.apellido, per.nombre, per.dni, per.direccion, per.tele_contac, c.cod_cliente FROM persona per JOIN cliente c ON per.dni = c.dni ORDER BY per.apellido"
+                cursor.execute(query)
+                for row in cursor.fetchall():
+                    self.tabla_clientes.rows.append(
+                        ft.DataRow(cells=[
+                            ft.DataCell(ft.Text(row[0])), ft.DataCell(ft.Text(row[1])),
+                            ft.DataCell(ft.Text(row[2])), ft.DataCell(ft.Text(row[3])),
+                            ft.DataCell(ft.Text(row[4])), ft.DataCell(ft.Text(row[5])),
+                            ft.DataCell(ft.Row([
+                                ft.IconButton(icon=ft.Icons.EDIT, tooltip="Modificar", icon_color="blue"),
+                                ft.IconButton(icon=ft.Icons.DELETE, tooltip="Eliminar", icon_color="red"),
+                            ])),
+                        ])
+                    )
+            except Exception as e:
+                print(f"Error al refrescar tabla: {e}")
+            finally:
+                if conn.is_connected():
+                    conn.close()
+        self.page.update()
 
-def main(page: ft.Page):
-    app = Herramienta_Cliente(page, main_menu_callback)
+    def mostrar_dialogo_alta(self, e):
+        """Muestra el diálogo que ya está en el overlay."""
+        print("Abriendo diálogo...")
+        for field in [self.txt_apellido, self.txt_nombre, self.txt_dni, self.txt_direccion, self.txt_telefono, self.txt_cod_cliente]:
+            field.value = ""
 
-ft.app(target=main)
+        # --- CAMBIO CLAVE #3: Solo cambiamos 'open' a True y actualizamos. ---
+        self.dlg_modal.open = True
+        self.page.update()
+
+    def cerrar_dialogo(self, e):
+        """Cierra el diálogo."""
+        self.dlg_modal.open = False
+        self.page.update()
+
+    def guardar_cliente(self, e):
+        # ... (El resto del código de guardar es el mismo y está bien)
+        conn = connect_to_db()
+        if conn:
+            try:
+                cursor = conn.cursor()
+                sql_persona = "INSERT INTO Persona (DNI, Nombre, Apellido, Direccion, Tele_Contac) VALUES (%s, %s, %s, %s, %s)"
+                val_persona = (self.txt_dni.value, self.txt_nombre.value, self.txt_apellido.value, self.txt_direccion.value, self.txt_telefono.value)
+                cursor.execute(sql_persona, val_persona)
+                
+                sql_cliente = "INSERT INTO Cliente (Cod_Cliente, DNI) VALUES (%s, %s)"
+                val_cliente = (self.txt_cod_cliente.value, self.txt_dni.value)
+                cursor.execute(sql_cliente, val_cliente)
+                
+                conn.commit()
+                print("Cliente guardado con éxito.")
+            except Exception as ex:
+                print(f"Error al guardar cliente: {ex}")
+                conn.rollback()
+            finally:
+                if conn.is_connected():
+                    conn.close()
+
+        self.cerrar_dialogo(e)
+        self.refrescar_tabla()
