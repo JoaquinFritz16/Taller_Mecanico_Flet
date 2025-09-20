@@ -33,7 +33,7 @@ connection = connect_to_db()
 
 # Navegacionn
 def cliente(e, page: ft.Page):
-    Herramienta_Cliente(page, menu_principal)
+    Herramienta_Cliente(page, menu_principal, connection)
 
 
 def mostrar_cliente(e, page: ft.Page):
@@ -57,11 +57,11 @@ def producto(e, page: ft.Page):
 
 
 def empleado(e, page: ft.Page):
-    Herramienta_Empleado(page, menu_principal)
+    Herramienta_Empleado(page, menu_principal, connection)
 
 
 def usuario(e, page: ft.Page):
-    Herramienta_Usuario(page, menu_principal)
+    Herramienta_Usuario(page, menu_principal, connection)
 
 
 def ficha_tecnica(e, page: ft.Page):

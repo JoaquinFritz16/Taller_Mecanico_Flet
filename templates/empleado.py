@@ -3,14 +3,14 @@ import mysql.connector
 from db import connect_to_db
 
 class Herramienta_Empleado:
-    def __init__(self, page: ft.Page, main_menu_callback):
+    def __init__(self, page: ft.Page, main_menu_callback, connection):
         self.page = page
         self.main_menu_callback = main_menu_callback
-        self.connection = connect_to_db()
+        self.connection =  connection
         self.cursor = self.connection.cursor() if self.connection else None
         self.mostrar_empleado()
 
-    def mostrar_empleado(self):
+    def mostrar_empleado(self, e=None):
         self.page.clean()
         header = ft.Row(
             controls=[
@@ -101,7 +101,7 @@ class Herramienta_Empleado:
         self.page.snack_bar.open = True
         self.page.update()
 
-    def volver_al_menu(self, e):
+    def volver_al_menu(self, e=None):
         self.page.clean()
         self.main_menu_callback(self.page)
 
@@ -222,3 +222,97 @@ class Herramienta_Empleado:
             self.page.snack_bar = ft.SnackBar(ft.Text(f"Error al actualizar: {ex}"))
             self.page.snack_bar.open = True
             self.page.update()
+    def consulta_empleado(self, e=None):
+        self.page.clean()
+
+    # Filtros de búsqueda
+        self.criterio_dropdown = ft.Dropdown(
+            label="Buscar por",
+            options=[
+            ft.dropdown.Option("DNI"),
+            ft.dropdown.Option("Apellido"),
+            ft.dropdown.Option("Legajo"),
+        ],
+            width=200,
+    )
+        self.criterio_text = ft.TextField(label="Valor", width=200)
+
+        buscar_btn = ft.ElevatedButton(
+            "Buscar",
+            icon=ft.Icons.SEARCH,
+            on_click=self.buscar_empleado
+    )
+        volver_btn = ft.ElevatedButton("Volver", on_click=self.mostrar_empleado)
+
+        self.page.add(
+            ft.Column([
+                ft.Text("Consulta de Empleados", size=24, weight="bold"),
+                ft.Row([self.criterio_dropdown, self.criterio_text, buscar_btn, volver_btn]),
+                self.create_empleado_table()
+        ])
+    )
+        self.page.update()
+    def buscar_empleado(self, e=None):
+        criterio = self.criterio_dropdown.value
+        valor = self.criterio_text.value
+
+        query = """
+            SELECT per.apellido, per.nombre, per.dni, per.direccion, per.tele_contac, emp.legajo
+            FROM persona per INNER JOIN empleado emp ON per.dni = emp.dni
+        """
+        if criterio == "DNI":
+            query += " WHERE per.dni = %s"
+        elif criterio == "Apellido":
+            query += " WHERE per.apellido LIKE %s"
+            valor = f"%{valor}%"
+        elif criterio == "Legajo":
+            query += " WHERE emp.legajo = %s"
+
+        self.cursor.execute(query, (valor,))
+        datos_empleados = self.cursor.fetchall()
+
+    # Refrescar tabla con resultados
+        self.page.clean()
+        self.page.add(ft.Text("Resultados de búsqueda", size=20, weight="bold"))
+        self.page.add(self.create_empleado_table_from_data(datos_empleados))
+        self.page.add(ft.ElevatedButton("Volver", on_click=self.consulta_empleado))
+        self.page.update()
+
+    def create_empleado_table_from_data(self, datos_empleados, e=None):
+        rows = []
+        for empleado in datos_empleados:
+            eliminar_button = ft.IconButton(
+                icon=ft.Icons.DELETE,
+                tooltip="Borrar",
+                on_click=lambda e, emp=empleado: self.eliminar_empleado(e, emp),
+            )
+            actualizar_button = ft.IconButton(
+                icon=ft.Icons.EDIT,
+                tooltip="Modificar",
+                on_click=lambda e, emp=empleado: self.actualizar_empleado(e, emp),
+            )
+            rows.append(
+                ft.DataRow(
+                    cells=[
+                        ft.DataCell(ft.Text(empleado[0])),
+                        ft.DataCell(ft.Text(empleado[1])),
+                        ft.DataCell(ft.Text(str(empleado[2]))),
+                        ft.DataCell(ft.Text(empleado[3])),
+                        ft.DataCell(ft.Text(empleado[4])),
+                        ft.DataCell(ft.Text(str(empleado[5]))),
+                        ft.DataCell(ft.Row(controls=[eliminar_button, actualizar_button])),
+                    ],
+                )
+            )
+        return ft.DataTable(
+            columns=[
+                ft.DataColumn(ft.Text("Apellido")),
+                ft.DataColumn(ft.Text("Nombre")),
+                ft.DataColumn(ft.Text("DNI")),
+                ft.DataColumn(ft.Text("Dirección")),
+                ft.DataColumn(ft.Text("Teléfono")),
+                ft.DataColumn(ft.Text("Legajo")),
+                ft.DataColumn(ft.Text("Acciones")),
+            ],
+            rows=rows,
+        )

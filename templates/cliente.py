@@ -4,14 +4,15 @@ from db import connect_to_db
 
 
 class Herramienta_Cliente:
-    def __init__(self, page: ft.Page, main_menu_callback):
+    def __init__(self, page: ft.Page, main_menu_callback, connection):
         self.page = page
         self.main_menu_callback = main_menu_callback
-        self.connection = connect_to_db()
+        self.connection = connection
         self.cursor = self.connection.cursor() if self.connection else None
         self.mostrar_cliente()
 
-    def mostrar_cliente(self,):
+
+    def mostrar_cliente(self, e=None):
         self.page.clean()
         header = ft.Row(
             controls=[
@@ -36,7 +37,7 @@ class Herramienta_Cliente:
             )
         )
 
-    def alta_cliente(self, e):
+    def alta_cliente(self, e=None):
         self.page.clean()
         self.dni = ft.TextField(label="DNI", width=300)
         self.apellido = ft.TextField(label="Apellido", width=300)
@@ -65,7 +66,7 @@ class Herramienta_Cliente:
         )
         self.page.update()
 
-    def guardar_cliente(self, e):
+    def guardar_cliente(self, e=None):
         try:
             self.cursor.execute(
                 "INSERT INTO persona (dni, apellido, nombre, direccion, tele_contac) VALUES (%s, %s, %s, %s, %s)",
@@ -90,7 +91,7 @@ class Herramienta_Cliente:
             self.page.snack_bar.open = True
             self.page.update()
 
-    def consulta_cliente(self, e):
+    def consulta_cliente(self, e=None):
         self.page.clean()
         self.page.add(ft.Text("Consulta de Clientes", size=24, weight="bold"))
         self.page.add(self.create_client_table())
@@ -106,7 +107,7 @@ class Herramienta_Cliente:
         self.page.clean()
         self.main_menu_callback(self.page)
 
-    def create_client_table(self):
+    def create_client_table(self, e=None):
         if not self.cursor:
             print("No hay conexión a la base de datos")
             return ft.Text("No hay conexión a la base de datos")
@@ -229,6 +230,102 @@ class Herramienta_Cliente:
             self.page.snack_bar.open = True
             self.page.update()
 
+    def consulta_cliente(self, e=None):
+        self.page.clean()
+
+        # Filtros de búsqueda
+        self.criterio_dropdown = ft.Dropdown(
+            label="Buscar por",
+            options=[
+                ft.dropdown.Option("DNI"),
+                ft.dropdown.Option("Apellido"),
+                ft.dropdown.Option("Código Cliente"),
+            ],
+            width=200,
+        )
+        self.criterio_text = ft.TextField(label="Valor", width=200)
+
+        buscar_btn = ft.ElevatedButton(
+            "Buscar",
+            icon=ft.Icons.SEARCH,
+            on_click=self.buscar_cliente
+        )
+        volver_btn = ft.ElevatedButton("Volver", on_click=self.mostrar_cliente)
+
+        self.page.add(
+            ft.Column([
+                ft.Text("Consulta de Clientes", size=24, weight="bold"),
+                ft.Row([self.criterio_dropdown, self.criterio_text, buscar_btn, volver_btn]),
+                self.create_client_table()
+            ])
+        )
+        self.page.update()
+
+    def buscar_cliente(self, e=None):
+        criterio = self.criterio_dropdown.value
+        valor = self.criterio_text.value
+
+        query = """
+            SELECT per.apellido, per.nombre, per.dni, per.direccion, per.tele_contac, c.cod_cliente
+            FROM persona per INNER JOIN cliente c ON per.dni = c.dni
+        """
+        if criterio == "DNI":
+            query += " WHERE per.dni = %s"
+        elif criterio == "Apellido":
+            query += " WHERE per.apellido LIKE %s"
+            valor = f"%{valor}%"
+        elif criterio == "Código Cliente":
+            query += " WHERE c.cod_cliente = %s"
+
+        self.cursor.execute(query, (valor,))
+        datos_clientes = self.cursor.fetchall()
+
+        # Refrescar tabla con resultados
+        self.page.clean()
+        self.page.add(ft.Text("Resultados de búsqueda", size=20, weight="bold"))
+        self.page.add(self.create_client_table_from_data(datos_clientes))
+        self.page.add(ft.ElevatedButton("Volver", on_click=self.consulta_cliente))
+        self.page.update()
+
+    def create_client_table_from_data(self, datos_clientes):
+        rows = []
+        for cliente in datos_clientes:
+            eliminar_button = ft.IconButton(
+                icon=ft.Icons.DELETE,
+                tooltip="Borrar",
+                on_click=lambda e, c=cliente: self.eliminar_cliente(e, c),
+            )
+            actualizar_button = ft.IconButton(
+                icon=ft.Icons.EDIT,
+                tooltip="Modificar",
+                on_click=lambda e, c=cliente: self.actualizar_cliente(e, c),
+            )
+            rows.append(
+                ft.DataRow(
+                    cells=[
+                        ft.DataCell(ft.Text(cliente[0])),
+                        ft.DataCell(ft.Text(cliente[1])),
+                        ft.DataCell(ft.Text(str(cliente[2]))),
+                        ft.DataCell(ft.Text(cliente[3])),
+                        ft.DataCell(ft.Text(cliente[4])),
+                        ft.DataCell(ft.Text(str(cliente[5]))),
+                        ft.DataCell(ft.Row(controls=[eliminar_button, actualizar_button])),
+                    ],
+                )
+            )
+
+        return ft.DataTable(
+            columns=[
+                ft.DataColumn(ft.Text("Apellido")),
+                ft.DataColumn(ft.Text("Nombres")),
+                ft.DataColumn(ft.Text("DNI")),
+                ft.DataColumn(ft.Text("Dirección")),
+                ft.DataColumn(ft.Text("Teléfono")),
+                ft.DataColumn(ft.Text("Código de Cliente")),
+                ft.DataColumn(ft.Text("Acciones")),
+            ],
+            rows=rows,
+        )
 
 def main_menu_callback(page: ft.Page):
     page.clean()

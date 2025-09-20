@@ -354,9 +354,9 @@ CREATE TABLE proveedor (
     PRIMARY KEY (cod_proveedor)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-INSERT INTO proveedor (nombre, direccion, telefono, email) VALUES
+INSERT INTO proveedor (cod_proveedor, nombre, direccion, telefono, email) VALUES
 ('P001','Proveedor 1', 'Calle Falsa 123', '3511111111', 'proveedor1@mail.com'),
-('P002''Proveedor 2', 'Av. Siempreviva 742', '3512222222', 'proveedor2@mail.com');
+('P002','Proveedor 2', 'Av. Siempreviva 742', '3512222222', 'proveedor2@mail.com');
 
 --
 -- Dumping events for database 'taller_mecanico'
