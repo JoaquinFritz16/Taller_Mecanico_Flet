@@ -37,7 +37,7 @@ def cliente(e, page: ft.Page):
 
 
 def mostrar_cliente(e, page: ft.Page):
-    Herramienta_Cliente(page, menu_principal)
+    Herramienta_Cliente(page, menu_principal, connection)
 
 
 def repuesto(e, page: ft.Page):
